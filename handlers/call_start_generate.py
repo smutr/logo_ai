@@ -140,6 +140,7 @@ async def process_shape(call: CallbackQuery, state: FSMContext):
         await call.message.answer(
             text=result_text,
             parse_mode="Markdown",
+            reply_markup=get_back_keyboard()
         )
     except Exception as e:
         error_text = (
