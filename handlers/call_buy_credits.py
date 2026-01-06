@@ -1,10 +1,12 @@
 from aiogram import Router, F
 from aiogram.enums import ParseMode
-from aiogram.types import CallbackQuery
+from aiogram.types import CallbackQuery, Message
 from keyboards.buy_credits_keyboard import get_buy_credits_keyboard
 from keyboards.back import get_back_keyboard
 from db.models import add_credit_user
 from keyboards.confirm_payment_keyboard import get_confirm_payment_keyboard
+from aiogram.types import LabeledPrice
+
 
 router = Router()
 
@@ -13,13 +15,20 @@ router = Router()
 async def show_buy_credits(call: CallbackQuery):
     text = (
         "Покупка генераций\n\n"
-        "1 генерация логотипа = 99 ₽.\n"
-        "Чем больше пакет — тем дешевле одна генерация.\n\n"
-        "Выберите нужное количество:"
+        "1 генерация логотипа = 100 ⭐ Telegram Stars.\n"
+        "Чем больше пакет — тем выгоднее цена за одну генерацию!\n\n"
+        "Выберите нужное количество, и Telegram предложит оплатить покупку звёздами.\n\n"
+        "❓ *Что такое звёзды Telegram?*\n"
+        "Это внутренняя валюта Telegram для быстрых и безопасных покупок "
+        "цифровых товаров внутри приложений и ботов.\n\n"
+        "💳 Если у вас нет звёзд — Telegram автоматически предложит их купить "
+        "через App Store, Google Play или Fragment (crypto)."
     )
+
     await call.message.edit_text(
         text=text,
         reply_markup=get_buy_credits_keyboard(),
+        parse_mode="Markdown"
     )
 
 
@@ -37,19 +46,25 @@ PRICE_BY_CREDITS = {
 
 
 # купить кредиты
-@router.callback_query(lambda x: x.data.startswith('buy_credits_'))
-async def credits_number(call: CallbackQuery):
-    credits = int(call.data.replace('buy_credits_', ''))
+from aiogram.types import LabeledPrice
 
-    await call.message.edit_text(
-        text=(
-            f"Вы выбрали пакет на <b>{credits}</b> кредит(ов).\n\n"
-            "Каждый кредит — это одна генерация логотипа в высоком качестве.\n\n"
-            "Подтвердите покупку:"
-        ),
-        reply_markup=get_confirm_payment_keyboard(credits),
-        parse_mode=ParseMode.HTML
+@router.callback_query(lambda c: c.data.startswith('buy_credits_'))
+async def pay_with_stars(call: CallbackQuery):
+    credits = int(call.data.replace('buy_credits_', ''))
+    stars_per_credit = 100      # допустим, 1 генерация = 100 звёзд (установи свою цену)
+    amount = credits * stars_per_credit
+
+    await call.bot.send_invoice(
+        chat_id=call.from_user.id,
+        title="Покупка генераций LogoAI",
+        description=f"{credits} генераций логотипа LogoAI",
+        payload=f"logoai_stars_{credits}",
+        provider_token="STARS",     # фиксированное значение для звёзд,
+        currency="XTR",             # ключ для звёзд!
+        prices=[LabeledPrice(label=f"{credits} генераций", amount=amount)],  # amount — в звёздах!
+        start_parameter="buy-credits"
     )
+
 
 # назад к платежам
 @router.callback_query(F.data == "back_to_buy_credits")
@@ -61,10 +76,28 @@ async def back_to_buy_credits(call: CallbackQuery):
 
 
 # Подтвердить платеж
-@router.callback_query(F.data.startswith('pay_credits_'))
-async def pay_credits(call: CallbackQuery):
-    credits = int(call.data.replace('pay_credits_', ""))
-    await add_credit_user(call.from_user.id, credits)
-    await call.message.edit_text(
-        text=f'✅ Спасибо! Вам начислено {credits} платных генераций.',
-    reply_markup=get_back_keyboard())
+@router.message()
+async def payment_handler(message: Message):
+    # Обрабатываем только сообщения с успешной оплатой
+    if not message.successful_payment:
+        return
+
+    payload = message.successful_payment.invoice_payload
+
+    # Наши платежи за кредиты помечаем как "logoai_stars_<число>"
+    if payload.startswith("logoai_stars_"):
+        credits = int(payload.split("_")[-1])
+
+        # Начисляем кредиты пользователю
+        await add_credit_user(message.from_user.id, credits)
+
+        await message.answer(
+            "✅ Спасибо за оплату!\n\n"
+            f"Вам начислено {credits} генераций "
+            "(оплачено через Telegram Stars).\n\n"
+            "Вы можете использовать генерации в любой момент "
+            "для создания логотипа.\n"
+            "Ваш баланс всегда доступен в профиле."
+        )
+
+

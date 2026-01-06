@@ -6,7 +6,7 @@ def get_confirm_payment_keyboard(credits: int) -> InlineKeyboardMarkup:
         inline_keyboard=[
             [
                 InlineKeyboardButton(
-                    text=f"💳 Оплатить {credits} кредит(ов)",
+                    text=f"💳 Оплатить {credits} ген. в ⭐",
                     callback_data=f"pay_credits_{credits}",
                 )
             ],
@@ -15,6 +15,6 @@ def get_confirm_payment_keyboard(credits: int) -> InlineKeyboardMarkup:
                     text="⬅️ Назад к выбору пакетов",
                     callback_data="back_to_buy_credits",
                 )
-            ]
+            ],
         ]
     )
