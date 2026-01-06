@@ -6,21 +6,31 @@ from keyboards.generate.styles import get_styles_keyboard
 from keyboards.generate.colors import get_colors_keyboard
 from keyboards.generate.shapes import get_shapes_keyboard
 from keyboards.main_menu import get_main_keyboard
+from keyboards.back import get_back_keyboard
+from db.models import User, get_or_create_user, try_decrement_generation
+from services.recraft_api import build_prompt
+from services.translator import TranslatorService
+from services.recraft_api import generate_logo
+from db.models import save_generation
 
 router = Router()
 
 
 @router.callback_query(F.data == 'start_generate')
 async def call_start_generate(call: CallbackQuery, state: FSMContext):
-    balance = 3
+    user, status = await try_decrement_generation(call.from_user.id)
+    # Следует продолжить с этого места и привинтить новую функцию из модели
 
-    if balance > 0:
+    if user is None:
+        user = await get_or_create_user(call.from_user.id, call.from_user.username or "Undefined")
+
+    if status in ('free', 'paid'):
         await state.set_state(GenerateStates.waiting_description)
         await call.message.edit_text(text="📝 Опиши свой бренд одной строкой\n\nПример: кофейня с современным дизайном")
 
 
     else:
-        await call.message.edit_text(text="❌ У тебя нет кредитов!\n\n💰 Купи кредиты в меню")
+        await call.message.edit_text(text="❌ У тебя нет кредитов!\n\n💰 Купи кредиты в меню", reply_markup=get_back_keyboard())
 
 
 @router.message(GenerateStates.waiting_description)
@@ -54,6 +64,26 @@ async def process_color(call: CallbackQuery, state: FSMContext):
     await call.message.edit_text(text='📐 Выбери форму логотипа:', reply_markup=get_shapes_keyboard())
 
 
+
+
+
+
+# Функция скачивает файл по ссылке и отправляет в чат
+# async def send_logo_document(chat_id, url, bot, ext="svg"):
+#     # Скачиваем файл по url локально
+#     filename = f"logo.{ext}"
+#     async with aiohttp.ClientSession() as session:
+#         async with session.get(url) as resp:
+#             data = await resp.read()
+#             with open(filename, "wb") as f:
+#                 f.write(data)
+#     file = FSInputFile(filename)
+#     # Отправляем как документ, чтобы не портилось качество
+#     await bot.send_document(chat_id, file, caption="Ваш логотип готов!")
+
+
+
+
 @router.callback_query(F.data.startswith('shape_'))
 async def process_shape(call: CallbackQuery, state: FSMContext):
     shape = call.data.replace('shape_', '')
@@ -62,15 +92,67 @@ async def process_shape(call: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     await state.clear()
 
-    await call.message.edit_text(text=f"""✅ Готово! Вот твои параметры:
+    text_params = (
+        "✅ Готово! Вот твои параметры:\n\n"
+        f"📝 Описание: {data['description']}\n"
+        f"🎨 Стиль: {data['style']}\n"
+        f"🎨 Цвет: {data['color']}\n"
+        f"📐 Форма: {data['shape']}\n\n"
+        "⏳ Генерирую логотип..."
+    )
 
-📝 Описание: {data['description']}
-🎨 Стиль: {data['style']}
-🎨 Цвет: {data['color']}
-📐 Форма: {data['shape']}
+    await call.message.edit_text(text=text_params)
 
-⏳ Начинаю генерацию...
-""")
+    translator = TranslatorService()
+    description_en = await translator.translate_ru_to_en(text=data['description'])
+
+    # Маппинг цвета и формы на английский
+    color_en = data['color']
+    shape_en = data['shape']
+
+    prompt = build_prompt(
+        description_en=description_en,
+        color=color_en,
+        shape=shape_en,
+        style=data['style'],
+    )
+
+    try:
+        url, units_spent = await generate_logo(prompt=prompt, style=data['style'])
+        user = await get_or_create_user(call.from_user.id, call.from_user.username or "Unknown")
+
+        await save_generation(
+            user_id=user.id,
+            prompt=prompt,
+            style=data["style"],
+            url=url,
+            units=units_spent,
+        )
+
+        result_text = (
+            "✅ Ваш логотип готов!\n\n"
+            f"🔗 [Скачать SVG (векторный логотип)]({url})\n\n"
+            "SVG — исходный векторный формат. Откройте в браузере или редакторе (Figma, Illustrator).\n"
+            "Если нужен PNG/JPG или предпросмотр — напишите нам или воспользуйтесь онлайн-конвертером.\n\n"
+            "Хотите получить новый логотип? Просто начните генерацию с новыми параметрами или используйте меню."
+        )
+
+        await call.message.answer(
+            text=result_text,
+            parse_mode="Markdown",
+        )
+    except Exception as e:
+        error_text = (
+            f"❌ Ошибка генерации логотипа: {e}\n\n"
+            "Попробуйте снова или измените параметры."
+        )
+        await call.message.answer(
+            text=error_text,
+            reply_markup=get_main_keyboard(),
+        )
+
+
+
 
 
 @router.callback_query(F.data == 'cancel_generate')
@@ -82,4 +164,3 @@ async def process_cancel(call: CallbackQuery, state: FSMContext):
         "Твой баланс: 💎 3 генерации (Free trial)",
         reply_markup=get_main_keyboard()
     )
-

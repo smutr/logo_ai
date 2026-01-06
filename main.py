@@ -1,4 +1,4 @@
-
+from db.models import init_db
 from aiogram import Bot, Dispatcher, Router, types
 from aiogram.filters import Command
 from aiogram.methods import SendMessage
@@ -17,8 +17,10 @@ dp = Dispatcher()
 
 
 async def main():
-    logger.info("📡 Подключение обработчиков...")
+    logger.info("🔧 Инициализация базы данных...")
+    await init_db()
 
+    logger.info("📡 Подключение обработчиков...")
     for router in routers:
         dp.include_router(router)
 

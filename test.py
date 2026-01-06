@@ -1,56 +1,29 @@
 
 import requests
-import json
 
 
-API_KEY='sk-2akrEBz3r66nEchKXaUghVOT14Bnx3cjOA57PiMEa70e72C6'
+API_KEY='3mE9JEZ6Lq0OvjOG4SVhxWLAQO8QDQzswfZxoSvDsf0YtIlp3sf5qY631aGfKur2'
 
-if not API_KEY:
-    print("❌ ОШИБКА: API_KEY не найдена!")
-    exit(1)
 
-print(f"✅ API Key найдена!")
+url = "https://external.api.recraft.ai/v1/images/generations"
 
-# ПРАВИЛЬНЫЙ ENDPOINT (используем ultra для качества)
-url = "https://api.stability.ai/v2beta/stable-image/generate/ultra"
-
+payload = {
+    "prompt": "picture of a bull boar",
+    "style": "vector_illustration",
+    "format": "svg"
+}
 headers = {
-    "authorization": f"Bearer {API_KEY}",
-    "accept": "image/*"
+    "Authorization": f"Bearer {API_KEY}",
+    "Content-Type": "application/json"
 }
 
-data = {
-    "prompt": "A logo of a plum-headed man riding a bicycle in a triangle shape.",
-    "output_format": "png"
-}
+response = requests.post(url, json=payload, headers=headers)
 
-print("\n🎨 Генерируем логотип...")
-print(f"📝 Промпт: {data['prompt']}")
+print("Status code:", response.status_code)
+print("Raw text:", response.text)
+if response.status_code == 200:
+    print("JSON response:", response.json())
+else:
+    print("Ошибка! Код ответа:", response.status_code)
+    print("Текст ответа:", response.text)
 
-try:
-    # ⚠️ ВАЖНО: files={"none": ''} НУЖЕН!
-    response = requests.post(
-        url,
-        headers=headers,
-        files={"none": ''},  # ← КРИТИЧНО!
-        data=data,
-        timeout=60
-    )
-
-    print(f"\n📊 Статус ответа: {response.status_code}")
-
-    if response.status_code == 200:
-        with open("logo.png", "wb") as f:
-            f.write(response.content)
-        print("✅ УСПЕХ! Логотип создан!")
-        print("📍 Файл сохранён: logo.png")
-        print(f"📊 Размер: {len(response.content)} байт")
-    else:
-        print(f"❌ ОШИБКА: {response.status_code}")
-        try:
-            print(f"📝 Ответ: {response.json()}")
-        except:
-            print(f"📝 Ответ: {response.text}")
-
-except Exception as e:
-    print(f"❌ ОШИБКА подключения: {e}")
