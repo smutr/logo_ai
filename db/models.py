@@ -90,7 +90,7 @@ async def get_or_create_user(telegram_id: int, username: str):
             user = User(
                 telegram_id=telegram_id,
                 username=username,
-                free_generations_left=3
+                free_generations_left=1
             )
             session.add(user)
             await session.commit()
@@ -119,3 +119,22 @@ async def try_decrement_generation(telegram_id: int):
             return user, "paid"
         else:
             return user, "no_generations"
+
+
+async def add_credit_user(telegram_id: int, credits: int):
+    async with async_session_maker() as session:  # <-- скобки!
+        # ищем пользователя
+        result = await session.execute(
+            select(User).where(User.telegram_id == telegram_id)
+        )
+        user = result.scalar_one_or_none()
+
+        if user is None:
+            return None  # или выбросить ошибку / вернуть статус
+
+        # увеличиваем количество платных генераций
+        user.paid_generations = (user.paid_generations or 0) + credits
+
+        await session.commit()
+        await session.refresh(user)
+        return user
