@@ -3,9 +3,9 @@ def get_buy_credits_keyboard() -> InlineKeyboardMarkup:
     # цены уже в ⭐, а не в рублях
     plans = [
         {"credits": 1, "price": 100, "label": "На пробу"},
-        {"credits": 2, "price": 190, "label": "Мини"},          # ~95 ⭐
-        {"credits": 3, "price": 270, "label": "Старт"},         # ~90 ⭐
-        {"credits": 5, "price": 430, "label": "Популярный ⭐"},  # ~86 ⭐
+        {"credits": 2, "price": 200, "label": "Мини"},          # ~95 ⭐
+        {"credits": 3, "price": 300, "label": "Старт"},         # ~90 ⭐
+        {"credits": 5, "price": 400, "label": "Популярный ⭐"},  # ~86 ⭐
         {"credits": 7, "price": 560, "label": "Выгодно 🔥"},    # ~80 ⭐
         {"credits": 10, "price": 750, "label": "Профи"},        # ~75 ⭐
         {"credits": 15, "price": 1050, "label": "Студия"},      # ~70 ⭐

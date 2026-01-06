@@ -6,7 +6,7 @@ from keyboards.back import get_back_keyboard
 from db.models import add_credit_user
 from keyboards.confirm_payment_keyboard import get_confirm_payment_keyboard
 from aiogram.types import LabeledPrice
-
+from aiogram.types import PreCheckoutQuery
 
 router = Router()
 
@@ -59,7 +59,7 @@ async def pay_with_stars(call: CallbackQuery):
         title="Покупка генераций LogoAI",
         description=f"{credits} генераций логотипа LogoAI",
         payload=f"logoai_stars_{credits}",
-        provider_token="STARS",     # фиксированное значение для звёзд,
+        provider_token="",     # фиксированное значение для звёзд,
         currency="XTR",             # ключ для звёзд!
         prices=[LabeledPrice(label=f"{credits} генераций", amount=amount)],  # amount — в звёздах!
         start_parameter="buy-credits"
@@ -98,6 +98,9 @@ async def payment_handler(message: Message):
             "Вы можете использовать генерации в любой момент "
             "для создания логотипа.\n"
             "Ваш баланс всегда доступен в профиле."
-        )
+        , reply_markup=get_buy_credits_keyboard())
 
 
+@router.pre_checkout_query()
+async def process_pre_checkout(pre_checkout_query: PreCheckoutQuery):
+    await pre_checkout_query.answer(ok=True)
