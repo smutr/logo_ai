@@ -1,5 +1,5 @@
 from datetime import datetime
-
+from sqlalchemy import Boolean
 from sqlalchemy.types import DateTime
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
@@ -35,7 +35,7 @@ class LogoGeneration(Base):
     style = Column(String, nullable=False)
     url = Column(String, nullable=False)
     units = Column(Integer, nullable=False)
-
+    is_active = Column(Boolean, default=True, nullable=False)
 
 async def save_generation(user_id: int, prompt: str, style: str, url: str, units: int):
     async with async_session_maker() as session:
@@ -56,11 +56,15 @@ async def get_user_logos(user_id: int, limit: int = 5):
     async with async_session_maker() as session:
         result = await session.execute(
             select(LogoGeneration)
-            .where(LogoGeneration.user_id == user_id)
+            .where(
+                LogoGeneration.user_id == user_id,
+                LogoGeneration.is_active == True,  # только активные
+            )
             .order_by(LogoGeneration.created_at.desc())
             .limit(limit)
         )
         return result.scalars().all()
+
 
 # получение всех логотипов
 async def count_user_logos(user_id: int) -> int:
