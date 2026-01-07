@@ -18,7 +18,7 @@ async def show_gallery(call: CallbackQuery):
         username=call.from_user.username or "Unknown",
     )
 
-    logos = await get_user_logos(user.id, limit=20)  # чуть больше для фильтрации
+    logos = await get_user_logos(user.id, limit=5)
 
     if not logos:
         await call.message.answer(
@@ -29,44 +29,12 @@ async def show_gallery(call: CallbackQuery):
         )
         return
 
-    valid_logos = []
-    async with aiohttp.ClientSession() as session:
-        async with async_session_maker() as db:
-            for gen in logos:
-                try:
-                    async with session.head(gen.url, timeout=5) as resp:
-                        if resp.status == 200:
-                            valid_logos.append(gen)
-                        else:
-                            # помечаем как неактивный
-                            await db.execute(
-                                update(LogoGeneration)
-                                .where(LogoGeneration.id == gen.id)
-                                .values(is_active=False)
-                            )
-                except Exception:
-                    await db.execute(
-                        update(LogoGeneration)
-                        .where(LogoGeneration.id == gen.id)
-                        .values(is_active=False)
-                    )
-            await db.commit()
-
-    if not valid_logos:
-        await call.message.answer(
-            "📁 <b>Все старые логотипы более недоступны.</b>\n"
-            "Создайте новые в генераторе ✨",
-            parse_mode=ParseMode.HTML,
-            reply_markup=get_back_keyboard(),
-        )
-        return
-
     lines = [
         "🖼 <b>Ваши последние логотипы</b>\n",
-        f"Найдено: <b>{len(valid_logos)}</b>\n",
+        f"Найдено: <b>{len(logos)}</b>\n",
     ]
 
-    for i, gen in enumerate(valid_logos[:5], 1):
+    for i, gen in enumerate(logos, 1):
         date_str = gen.created_at.strftime("%d.%m.%Y %H:%M")
         style = gen.style.replace("_", " ").title()
         lines.append(

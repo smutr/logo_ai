@@ -104,7 +104,7 @@ def build_prompt(
 
 
 
-async def generate_logo(prompt: str, style: str, format_: str = "svg") -> tuple[str, int]:
+async def generate_logo(prompt: str, style: str, format_: str = "svg"):
     headers = {
         "Authorization": f"Bearer {RECRAFT_API_KEY}",
         "Content-Type": "application/json",
