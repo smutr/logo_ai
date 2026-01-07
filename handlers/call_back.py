@@ -9,4 +9,4 @@ router = Router()
 async def back_to_menu(call: CallbackQuery):
     await call.message.edit_text(text="🎨 Добро пожаловать в LogoAI!\n\n"
                                       "Я помогу создать идеальный логотип для твоего бренда за минуты.\n\n"
-                                      "Твой баланс: 💎 3 генерации (Free trial)", reply_markup=get_main_keyboard())
+                                      "Твой баланс: 💎 1 генерации (Free trial)", reply_markup=get_main_keyboard())
